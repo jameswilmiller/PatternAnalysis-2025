@@ -28,7 +28,7 @@ class CNNVAE(nn.Module):
             nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.MaxPool2d(2) #64 -> 32
+            nn.MaxPool2d(2), #64 -> 32
 
             nn.Conv2d(128, 256, 3, padding=1),
             nn.BatchNorm2d(256),
@@ -94,3 +94,11 @@ class CNNVAE(nn.Module):
         z = self.reparameterize(mu, logvar)
         recon = self.decode(z)
         return recon, mu, logvar
+    
+    def vae_loss_function(recon_x, x, mu, logvar, beta=1.0):
+        #reconstruction loss (binary cross entropy)
+        BCE = nn.functional.binary_cross_entropy(recon_x, x, reduction='sum')
+
+        KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+        return BCE + beta * KLD, BCE, KLD
