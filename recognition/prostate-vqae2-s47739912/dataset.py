@@ -7,6 +7,7 @@ import torch
 from torchvision import transforms 
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
+from modules import *
 #use these paths when using rangpur
 
 
@@ -70,5 +71,37 @@ class KerasSlicesDataset(Dataset):
         return x
 
 train = list_nifti(TRAIN_DIR)
+print("num files:", len(train))
+
+data = KerasSlicesDataset(train, size=(256,256), norm=True)
+
+class KerasSlicesDataLoader():
+
+    def __init__(self, train_dir, val_dir, test_dir, size=(256,256), norm=True):
+        p = Parameters()
+        self.batch_size = p.batch_size
 
 
+        train_paths = list_nifti(train_dir)
+        val_paths = list_nifti(val_dir)
+        test_paths = list_nifti(test_dir)
+
+        self.train_data = KerasSlicesDataset(train_paths, size=size, norm=norm)
+        self.val_data = KerasSlicesDataset(val_paths, size=size, norm=norm)
+        self.test_data = KerasSlicesDataset(test_paths, size=size, norm=norm)
+
+
+    def get_train(self):
+        train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
+        return train_loader
+    
+    def get_validation(self):
+        validation_loader = DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False)
+        return validation_loader
+    
+    def get_test(self):
+        test_loader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle=False)
+        return test_loader
+
+
+        
