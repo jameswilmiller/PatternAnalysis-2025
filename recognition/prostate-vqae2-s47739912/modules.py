@@ -18,24 +18,24 @@ class CNNVAE(nn.Module):
             nn.Conv2d(1, 32, 3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            nn.MaxPool2d(2)  #256 -> 128
+            nn.MaxPool2d(2),  #256 -> 128
             
-            nn.conv2d(32, 64, 3, padding=1),
+            nn.Conv2d(32, 64, 3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2) #128 -> 64
+            nn.MaxPool2d(2), #128 -> 64
 
-            nn.conv2d(64, 128, 3, padding=1),
+            nn.Conv2d(64, 128, 3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2) #64 -> 32
 
-            nn.conv2d(128, 256, 3, padding=1),
+            nn.Conv2d(128, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.maxPool2d(2), #32 -> 16
+            nn.MaxPool2d(2), #32 -> 16
             
-            nn.conv2d(256, 256, 3, padding=1),
+            nn.Conv2d(256, 256, 3, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2), #16 -> 8
@@ -49,8 +49,8 @@ class CNNVAE(nn.Module):
         #decoder
         self.decoder = nn.Sequential(
             nn.Linear(latent_dim, 256 * 8 * 8),
-            nn.ReLU,
-            nn.UnFlatten(1, (256, 8, 8)) 
+            nn.ReLU(),
+            nn.Unflatten(1, (256, 8, 8)) ,
 
             nn.ConvTranspose2d(256, 256, 3, stride=2, padding=1, output_padding=1), #8 > 16
             nn.BatchNorm2d(256), 
