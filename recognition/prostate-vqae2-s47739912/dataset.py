@@ -70,10 +70,9 @@ class KerasSlicesDataset(Dataset):
                 x = torch.zeros_like(x)
         return x
 
-train = list_nifti(TRAIN_DIR)
-print("num files:", len(train))
 
-data = KerasSlicesDataset(train, size=(256,256), norm=True)
+
+
 
 class KerasSlicesDataLoader():
 
