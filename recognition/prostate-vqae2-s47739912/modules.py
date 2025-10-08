@@ -72,3 +72,25 @@ class CNNVAE(nn.Module):
             nn.BatchNorm2d(32),
             nn.Sigmoid(), #output in [0, 1] for img reconstruction
         )
+        
+    def encode(self, x):
+        h = self.encoder(x)
+        mu = self.fc_mu(h)
+        logvar = self.fc_logvar(h)
+        return mu, logvar
+    
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            std = torch.exp(0.5 *logvar)
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        return mu 
+    
+    def decode(self, z):
+        return self.decoder(z)
+    
+    def forward(self, x):
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
+        recon = self.decode(z)
+        return recon, mu, logvar
