@@ -6,9 +6,9 @@ from torchmetrics.image import StructuralSimilarityIndexMeasure
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torchvision.utils import save_image, make_grid
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-if not torch.cuda.is_available():
-    print("Warning CUDA not found. Using CPU")
+
+
+
 
 
 
@@ -19,28 +19,28 @@ def loss_function(recon, target, codebook_loss, commitment_loss, recon_weight=1.
 #train
 
 def main():
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if not torch.cuda.is_available():
-        print("warning: CUDA not found. Using cpu")
+    #build params
+    p = Parameters(profile="local")
 
-    #params
-    BATCH_SIZE = 32
-    
-
-    loaders = KerasSlicesDataLoader(
-        train_dir=TRAIN_DIR,
-        val_dir=VAL_DIR,
-        test_dir=TEST_DIR,
-        size=(256,256),
-        norm=True
-    )
+    device = p.device
+    if device.type != 'cuda':
+        print("Warning: CUDA not found. using cpu")
+   
+    # prep data
+    loaders = KerasSlicesDataLoader(p)
     train_loader = loaders.get_train()
     val_loader = loaders.get_validation()
-    test_loader = loaders.get_test()
+
+    
 
     #model
-    model = VQVAE(embedding_dim=embedding_dim, num_embeddings=num_embeddings, beta=beta).to(device)
-    optimiser = optim.Adam(model.parameters(), lr=learning_rate)
+    model = VQVAE(
+        embedding_dim=p.embedding_dim,
+        num_embeddings=p.num_embeddings,
+        beta=p.beta
+        ).to(device)
+        
+    optimiser = optim.Adam(model.parameters(), lr=p.learning_rate)
     ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
 
 
@@ -48,7 +48,8 @@ def main():
     train_ssim, val_ssims = [], []
 
 
-    for epoch in range(epochs):
+    for epoch in range(p.epochs):
+        #train
         model.train()
         t_loss = 0
         t_ssim = 0
@@ -92,7 +93,9 @@ def main():
         avg_val_loss = val_loss / len(val_loader)
         avg_val_ssim = val_ssim / len(val_loader)
         val_losses.append(avg_val_loss)
-        val_ssims.append(avg_val_ssim)
+        val_ssims.append(avg_val_ssim)\
+        
+        
 
 if __name__ == "__main__":
     main()

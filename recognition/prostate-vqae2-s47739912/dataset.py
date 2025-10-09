@@ -17,12 +17,7 @@ VAL_DIR = os.path.join(BASE_DIR, "keras_slices_validate")
 TEST_DIR = os.path.join(BASE_DIR, "keras_slices_test")
 
 
-#CURR = Path(__file__).resolve().parent
-#ROOT = CURR.parents[1] / "data" / "keras_slices_data"
 
-#TRAIN_DIR = ROOT / "keras_slices_train"
-#VAL_DIR = ROOT / "keras_slices_validate"
-#TEST_DIR = ROOT / "keras_slices_test"
 
 def list_nifti(folder: Path):
     return sorted(str(p) for p in folder.rglob("*") if p.name.lower().endswith(".nii.gz"))
@@ -76,30 +71,43 @@ class KerasSlicesDataset(Dataset):
 
 class KerasSlicesDataLoader():
 
-    def __init__(self, train_dir, val_dir, test_dir, size=(256,256), norm=True):
-        p = Parameters()
-        self.batch_size = p.batch_size
+    def __init__(self, p: Parameters = None):
+        self.p = p if p is not None else Parameters()
+
+        
 
 
-        train_paths = list_nifti(train_dir)
-        val_paths = list_nifti(val_dir)
-        test_paths = list_nifti(test_dir)
+        train_paths = list_nifti(self.p.train_dir)
+        val_paths = list_nifti(self.p.val_dir)
+        test_paths = list_nifti(self.p.test_dir)
 
-        self.train_data = KerasSlicesDataset(train_paths, size=size, norm=norm)
-        self.val_data = KerasSlicesDataset(val_paths, size=size, norm=norm)
-        self.test_data = KerasSlicesDataset(test_paths, size=size, norm=norm)
+        self.train_data = KerasSlicesDataset(train_paths, size=self.p.img_size, norm=self.p.normalise)
+        self.val_data = KerasSlicesDataset(val_paths, size=self.p.img_size, norm=self.p.normalise)
+        self.test_data = KerasSlicesDataset(test_paths, size=self.p.img_size, norm=self.p.normalise)
 
 
     def get_train(self):
-        train_loader = DataLoader(self.train_data, batch_size=self.batch_size, shuffle=True)
+        train_loader = DataLoader(
+            self.train_data,
+            batch_size=self.p.batch_size, 
+            shuffle=True
+            )
         return train_loader
     
     def get_validation(self):
-        validation_loader = DataLoader(self.val_data, batch_size=self.batch_size, shuffle=False)
+        validation_loader = DataLoader(
+            self.val_data, 
+            batch_size=self.p.batch_size, 
+            shuffle=False
+            )
         return validation_loader
     
     def get_test(self):
-        test_loader = DataLoader(self.test_data, batch_size = self.batch_size, shuffle=False)
+        test_loader = DataLoader(
+            self.test_data,
+            batch_size = self.p.batch_size,
+            shuffle=False
+            )
         return test_loader
 
 

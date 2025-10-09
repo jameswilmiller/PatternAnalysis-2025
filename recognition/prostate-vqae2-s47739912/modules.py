@@ -8,7 +8,7 @@ class Parameters():
         self.profile = profile #change to "rangpur if using rangpur"
         #data roots
         rangpur_base_dir = Path("/home/groups/comp3710/HipMRI_Study_open/keras_slices_data")       
-        local_base_dir = Path("C:\Users\itbmi\OneDrive\Documents\UQ-Work\pattern recognition\report\PatternAnalysis-2025\data\keras_slices_data")
+        local_base_dir = Path("C:/Users/itbmi/OneDrive/Documents/UQ-Work/pattern recognition/report/PatternAnalysis-2025/data/keras_slices_data")
         
         if profile == "rangpur":
             self.base_dir = rangpur_base_dir
@@ -26,7 +26,7 @@ class Parameters():
         #model
         self.embedding_dim = 64
         self.num_embeddings = 512
-        self.beta: 0.25
+        self.beta = 0.25
 
         #training
         self.batch_size = 32
@@ -36,13 +36,7 @@ class Parameters():
 
         #misc
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        @property
-        def base_dir(self):
-            return self.base_dir_rangpur if self.profile == "rangpur" else self.base_dir_local
-        @
-        def train_dir(self):
-            return self.base_dir
-
+       
       
 
 
@@ -80,22 +74,22 @@ class VectorQuantiser(nn.Module):
         nearest = self.embedding(indices)
 
         #reshape back
-        z_q_perm = nearest.view(batch, height, width, chan)
-        z_q = z_q_perm.permute(0, 3, 1, 2).contiguous()
+        quantised_permuted = nearest.view(batch, height, width, chan)
+        quantised = quantised_permuted.permute(0, 3, 1, 2).contiguous()
 
         #loss
-        codebook_loss = F.mse_loss(z_q_perm.detach(), x_perm)
-        commitment_loss = self.beta * F.mse_loss(x_perm.detach(), z_q_perm)
+        codebook_loss = F.mse_loss(quantised_permuted.detach(), x_perm)
+        commitment_loss = self.beta * F.mse_loss(x_perm.detach(), quantised_permuted)
 
-        z_q_st = x + (z_q - x).detach()
+        quantised_straight = x + (quantised - x).detach()
 
-        return z_q_st, codebook_loss, commitment_loss 
+        return quantised_straight, codebook_loss, commitment_loss 
         
 
 class VQVAE(nn.Module):
     def __init__(self, embedding_dim=64, num_embeddings=512, beta=0.5):
         super().__init__()
-        initial_channels = 1
+       
         #encoder
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, 3, padding=1),
@@ -153,17 +147,15 @@ class VQVAE(nn.Module):
         )
         
     def encode(self, x):
-        encoder_feat = self.encoder(x)
-        code_feat = self.to_embed(encoder_feat)
-        return code_feat
+        return self.to_embed(self.encoder(x))
     
     
     def decode(self, z):
         return self.decoder(z)
     
     def reparameterise(self, code):
-        quantised, codebook_loss, commitment_loss = self.vq(code)
-        return quantised, codebook_loss, commitment_loss
+        return self.vq(code)
+    
     def forward(self, x):
         code = self.encode(x)
         quantised, codebook_loss, commitment_loss = self.reparameterise(code)
