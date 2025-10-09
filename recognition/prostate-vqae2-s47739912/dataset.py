@@ -11,18 +11,18 @@ from modules import *
 #use these paths when using rangpur
 
 
-#BASE_DIR = "/home/groups/comp3710/HipMRI_Study_open/keras_slices_data"
-#TRAIN_DIR = os.path.join(BASE_DIR, "keras_slices_train")
-#VAL_DIR = os.path.join(BASE_DIR, "keras_slices_validate")
-#TEST_DIR = os.path.join(BASE_DIR, "keras_slices_test")
+BASE_DIR = "/home/groups/comp3710/HipMRI_Study_open/keras_slices_data"
+TRAIN_DIR = os.path.join(BASE_DIR, "keras_slices_train")
+VAL_DIR = os.path.join(BASE_DIR, "keras_slices_validate")
+TEST_DIR = os.path.join(BASE_DIR, "keras_slices_test")
 
 
-CURR = Path(__file__).resolve().parent
-ROOT = CURR.parents[1] / "data" / "keras_slices_data"
+#CURR = Path(__file__).resolve().parent
+#ROOT = CURR.parents[1] / "data" / "keras_slices_data"
 
-TRAIN_DIR = ROOT / "keras_slices_train"
-VAL_DIR = ROOT / "keras_slices_validate"
-TEST_DIR = ROOT / "keras_slices_test"
+#TRAIN_DIR = ROOT / "keras_slices_train"
+#VAL_DIR = ROOT / "keras_slices_validate"
+#TEST_DIR = ROOT / "keras_slices_test"
 
 def list_nifti(folder: Path):
     return sorted(str(p) for p in folder.rglob("*") if p.name.lower().endswith(".nii.gz"))

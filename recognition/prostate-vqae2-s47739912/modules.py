@@ -1,13 +1,54 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
 
 class Parameters():
-    def __init__(self):
+    def __init__(self, profile="local"):
+        self.profile = profile #change to "rangpur if using rangpur"
+        #data roots
+        rangpur_base_dir = Path("/home/groups/comp3710/HipMRI_Study_open/keras_slices_data")       
+        local_base_dir = Path("C:\Users\itbmi\OneDrive\Documents\UQ-Work\pattern recognition\report\PatternAnalysis-2025\data\keras_slices_data")
+        
+        if profile == "rangpur":
+            self.base_dir = rangpur_base_dir
+        else:
+            self.base_dir = local_base_dir
+
+        self.train_dir = self.base_dir / "keras_slices_train"
+        self.val_dir = self.base_dir / "keras_slices_validate"
+        self.test_dir = self.base_dir / "keras_slices_test"
+
+        #data
+        self.img_size = (256, 256)
+        self.normalise = True
+        
+        #model
+        self.embedding_dim = 64
+        self.num_embeddings = 512
+        self.beta: 0.25
+
+        #training
         self.batch_size = 32
         self.learning_rate = 1e-4
-        self.embedding_dimension = 64
+        self.epochs = 10
+        self.recon_weight = 1.0
+
+        #misc
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        @property
+        def base_dir(self):
+            return self.base_dir_rangpur if self.profile == "rangpur" else self.base_dir_local
+        @
+        def train_dir(self):
+            return self.base_dir
+
+      
+
+
         
+
+
 class VectorQuantiser(nn.Module):
     def __init__(self, num_embedding, embedding_dim, commitment_cost):
         super().__init__()
@@ -23,8 +64,8 @@ class VectorQuantiser(nn.Module):
         #originals
         batch, chan, height, width = x.shape
 
-        x = x.permute(0, 2, 3,1).contiguous()
-        flattened_x = x.view(-1, self.embedding_dim)
+        x_perm = x.permute(0, 2, 3,1).contiguous()
+        flattened_x = x_perm.view(-1, self.embedding_dim)
 
         #squared L2 dist to codebook
         codebook = self.embedding.weight
@@ -39,25 +80,17 @@ class VectorQuantiser(nn.Module):
         nearest = self.embedding(indices)
 
         #reshape back
-        quantised = nearest.view(batch, height, width, chan)
-        quantised = quantised.permute(0, 3, 1, 2).contiguous()
+        z_q_perm = nearest.view(batch, height, width, chan)
+        z_q = z_q_perm.permute(0, 3, 1, 2).contiguous()
 
         #loss
-        codebook_loss = F.mse_loss(quantised, x.detach())
-        commitment_loss = self.beta * F.mse_loss(x, quantised.detach())
+        codebook_loss = F.mse_loss(z_q_perm.detach(), x_perm)
+        commitment_loss = self.beta * F.mse_loss(x_perm.detach(), z_q_perm)
 
-        quantised = x + (quantised - x).detach()
+        z_q_st = x + (z_q - x).detach()
 
-        return quantised, codebook_loss, commitment_loss 
+        return z_q_st, codebook_loss, commitment_loss 
         
-
-
-    
-        
-
-
-
-
 
 class VQVAE(nn.Module):
     def __init__(self, embedding_dim=64, num_embeddings=512, beta=0.5):
