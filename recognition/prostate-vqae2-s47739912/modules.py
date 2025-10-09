@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as f
+import torch.nn.functional as F
 
 class Parameters():
     def __init__(self):
@@ -8,11 +8,61 @@ class Parameters():
         self.learning_rate = 1e-4
         self.embedding_dimension = 64
         
-
-class CNNVAE(nn.Module):
-    def __init__(self, latent_dim=64):
+class VectorQuantiser(nn.Module):
+    def __init__(self, num_embedding, embedding_dim, commitment_cost):
         super().__init__()
-        self.latent_dim = latent_dim
+        self.num_embedding = num_embedding
+        self.embedding_dim = embedding_dim
+        self.beta = commitment_cost
+
+        self.embedding = nn.Embedding(self.num_embedding, self.embedding_dim)
+        self.embedding.weight.data.uniform_(-1.0 / self.num_embedding, 1.0 / self.num_embedding)
+
+    def forward(self, x):
+        #where x is batch size , channels, height, width
+        #originals
+        batch, chan, height, width = x.shape
+
+        x = x.permute(0, 2, 3,1).contiguous()
+        flattened_x = x.view(-1, self.embedding_dim)
+
+        #squared L2 dist to codebook
+        codebook = self.embedding.weight
+        dists = (
+            flattened_x.pow(2).sum(1, keepdim=True)
+            - 2 * flattened_x @ codebook.t()
+            + codebook.pow(2).sum(1)
+        )
+
+        #nearest code index 
+        indices = torch.argmin(dists, dim=1)
+        nearest = self.embedding(indices)
+
+        #reshape back
+        quantised = nearest.view(batch, height, width, chan)
+        quantised = quantised.permute(0, 3, 1, 2).contiguous()
+
+        #loss
+        codebook_loss = F.mse_loss(quantised, x.detach())
+        commitment_loss = self.beta * F.mse_loss(x, quantised.detach())
+
+        quantised = x + (quantised - x).detach()
+
+        return quantised, codebook_loss, commitment_loss 
+        
+
+
+    
+        
+
+
+
+
+
+class VQVAE(nn.Module):
+    def __init__(self, embedding_dim=64, num_embeddings=512, beta=0.5):
+        super().__init__()
+        initial_channels = 1
         #encoder
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 32, 3, padding=1),
@@ -39,20 +89,16 @@ class CNNVAE(nn.Module):
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.MaxPool2d(2), #16 -> 8
-
-            nn.Flatten(),
         )
-        #latent space params
-        self.fc_mu = nn.Linear(256 * 8 * 8, latent_dim) #mean
-        self.fc_logvar = nn.Linear(256 * 8 * 8, latent_dim) #log variance
+        self.to_embed = nn.Conv2d(256, embedding_dim, kernel_size = 1)
+
+        self.vq = VectorQuantiser(num_embedding=num_embeddings, embedding_dim = embedding_dim, commitment_cost=beta)
 
         #decoder
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 256 * 8 * 8),
-            nn.ReLU(),
-            nn.Unflatten(1, (256, 8, 8)) ,
+            
 
-            nn.ConvTranspose2d(256, 256, 3, stride=2, padding=1, output_padding=1), #8 > 16
+            nn.ConvTranspose2d(embedding_dim, 256, 3, stride=2, padding=1, output_padding=1), #8 > 16
             nn.BatchNorm2d(256), 
             nn.ReLU(),
 
@@ -68,36 +114,26 @@ class CNNVAE(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(),
 
-            nn.ConvTranspose2d(32, 1, 3, stride=2, padding=1, output_padding=1), #128 > 256
+            nn.ConvTranspose2d(32, 1, 3, stride=2, padding=1, output_padding=1),
+              #128 > 256
             nn.Sigmoid(), #output in [0, 1] for img reconstruction
         )
         
     def encode(self, x):
-        h = self.encoder(x)
-        mu = self.fc_mu(h)
-        logvar = self.fc_logvar(h)
-        return mu, logvar
+        encoder_feat = self.encoder(x)
+        code_feat = self.to_embed(encoder_feat)
+        return code_feat
     
-    def reparameterize(self, mu, logvar):
-        if self.training:
-            std = torch.exp(0.5 *logvar)
-            eps = torch.randn_like(std)
-            return mu + eps * std
-        return mu 
     
     def decode(self, z):
         return self.decoder(z)
     
+    def reparameterise(self, code):
+        quantised, codebook_loss, commitment_loss, _ = self.vq(code)
+        return quantised, codebook_loss, commitment_loss
     def forward(self, x):
-        mu, logvar = self.encode(x)
-        z = self.reparameterize(mu, logvar)
-        recon = self.decode(z)
-        return recon, mu, logvar
+        code = self.encode(x)
+        quantised, codebook_loss, commitment_loss = self.reparameterise(code)
+        recon = self.decode(quantised)
+        return recon, codebook_loss, commitment_loss
     
-def vae_loss_function(recon_x, x, mu, logvar, beta=1.0):
-    #reconstruction loss (binary cross entropy)
-    BCE = nn.functional.binary_cross_entropy(recon_x, x, reduction='sum')
-
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-
-    return BCE + beta * KLD, BCE, KLD
