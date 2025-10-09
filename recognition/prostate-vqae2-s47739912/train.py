@@ -95,7 +95,9 @@ def main():
         val_losses.append(avg_val_loss)
         val_ssims.append(avg_val_ssim)\
         
-        
+        print(f"Epoch {epoch+1}/{p.epochs} | "
+              f"train_loss {avg_t_loss:.4f}  val_loss {avg_val_loss:.4f} | "
+              f"train_ssim {avg_t_ssim:.4f}  val_ssim {avg_val_ssim:.4f}")
 
 if __name__ == "__main__":
     main()

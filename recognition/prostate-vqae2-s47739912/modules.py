@@ -106,18 +106,8 @@ class VQVAE(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.MaxPool2d(2), #64 -> 32
-
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.MaxPool2d(2), #32 -> 16
-            
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.MaxPool2d(2), #16 -> 8
         )
-        self.to_embed = nn.Conv2d(256, embedding_dim, kernel_size = 1)
+        self.to_embed = nn.Conv2d(128, embedding_dim, kernel_size = 1)
 
         self.vq = VectorQuantiser(num_embedding=num_embeddings, embedding_dim = embedding_dim, commitment_cost=beta)
 
@@ -125,11 +115,9 @@ class VQVAE(nn.Module):
         self.decoder = nn.Sequential(
             
 
-            nn.ConvTranspose2d(embedding_dim, 256, 3, stride=2, padding=1, output_padding=1), #8 > 16
-            nn.BatchNorm2d(256), 
-            nn.ReLU(),
 
-            nn.ConvTranspose2d(256, 128, 3, stride=2, padding=1, output_padding=1), #16 > 32
+
+            nn.ConvTranspose2d(embedding_dim, 128, 3, stride=2, padding=1, output_padding=1), #16 > 32
             nn.BatchNorm2d(128),
             nn.ReLU(),
 
@@ -141,7 +129,7 @@ class VQVAE(nn.Module):
             nn.BatchNorm2d(32),
             nn.ReLU(),
 
-            nn.ConvTranspose2d(32, 1, 3, stride=2, padding=1, output_padding=1),
+            nn.Conv2d(32, 1, 3, padding=1),
               #128 > 256
             nn.Sigmoid(), #output in [0, 1] for img reconstruction
         )
