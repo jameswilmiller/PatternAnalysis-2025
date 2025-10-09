@@ -129,7 +129,7 @@ class VQVAE(nn.Module):
         return self.decoder(z)
     
     def reparameterise(self, code):
-        quantised, codebook_loss, commitment_loss, _ = self.vq(code)
+        quantised, codebook_loss, commitment_loss = self.vq(code)
         return quantised, codebook_loss, commitment_loss
     def forward(self, x):
         code = self.encode(x)
