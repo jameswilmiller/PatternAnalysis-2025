@@ -31,7 +31,7 @@ class Parameters():
         #training
         self.batch_size = 32
         self.learning_rate = 1e-4
-        self.epochs = 10
+        self.epochs = 80
         self.recon_weight = 1.0
 
         #misc
@@ -83,7 +83,8 @@ class VectorQuantiser(nn.Module):
 
         quantised_straight = x + (quantised - x).detach()
 
-        return quantised_straight, codebook_loss, commitment_loss 
+        unflattened_indices = indices.view(batch, height, width)
+        return quantised_straight, codebook_loss, commitment_loss, unflattened_indices
         
 
 class VQVAE(nn.Module):
@@ -146,7 +147,7 @@ class VQVAE(nn.Module):
     
     def forward(self, x):
         code = self.encode(x)
-        quantised, codebook_loss, commitment_loss = self.reparameterise(code)
+        quantised, codebook_loss, commitment_loss, indices = self.reparameterise(code)
         recon = self.decode(quantised)
-        return recon, codebook_loss, commitment_loss
+        return recon, codebook_loss, commitment_loss, indices
     
