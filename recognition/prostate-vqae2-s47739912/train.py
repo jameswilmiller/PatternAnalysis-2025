@@ -6,7 +6,7 @@ from torchmetrics.image import StructuralSimilarityIndexMeasure
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torchvision.utils import save_image, make_grid
-
+from itertools import zip_longest
 
 
 
@@ -29,10 +29,10 @@ def evaluate(model, val_loader, device, ssim_metric):
 
     for batch in tqdm(val_loader, leave=False):
         batch = batch.to(device)
-        recon, codebook_loss, commitment_loss = model(batch)
+        recon, codebook_loss, commitment_loss, indices= model(batch)
         loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss)
         val_loss += loss.item()
-        val_ssim = ssim_metric(recon, batch).item()
+        val_ssim += ssim_metric(recon, batch).item()
 
     avg_v_loss = val_loss / len(val_loader)
     avg_v_ssim = val_ssim / len(val_loader)
@@ -52,7 +52,7 @@ def train_epoch(model, train_loader, optimiser, device, ssim_metric):
         batch = batch.to(device)
 
         #forward
-        recon, codebook_loss, commitment_loss = model(batch)
+        recon, codebook_loss, commitment_loss, indices = model(batch)
 
         #loss + step
         loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss)
@@ -66,9 +66,68 @@ def train_epoch(model, train_loader, optimiser, device, ssim_metric):
     avg_t_ssim = t_ssim / len(train_loader)
 
     return avg_t_loss, avg_t_ssim
+
+def save_metrics(train_loss, 
+                 val_losses, 
+                 train_ssim, 
+                 val_ssims, 
+                 best_epoch, 
+                 best_v_loss,
+                 epochs, 
+                 out_path="training_metrics.txt"
+                 ):
+    out_dir = os.path.dirname(out_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("Training Metrics\n")
+        f.write(f"Epochs: {epochs}\n")
+        f.write(f"Best Epoch: {best_epoch}\n")
+        f.write(f"Best validation loss {best_v_loss}\n\n")
+
+        f.write("epoch\ttrain_loss\tval_loss\ttrain_ssim\tval_ssim\n")
+        for epoch, tl, tv, ts, vs in zip_longest(
+            range(1, epochs + 1),
+            train_loss,
+            val_losses,
+            train_ssim,
+            val_ssims,
+            fillvalue=float("nan")
+        ):
+            f.write(f"{epoch}\t{tl}\t{vl}\t{ts}\t{vs}\n")
+    
+
+
+def plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+
+    #loss curve
+    plt.figure()
+    plt.plot(train_loss, label="train loss")
+    plt.plot(val_losses, label="val loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    losspath = os.path.join(out_dir, "loss.png")
+    plt.savefig(losspath, bbox_inches="tight", dpi=150)
+    plt.close()
+
+    #ssim curve
+    plt.figure()
+    plt.plot(train_ssim, label="train SSIM")
+    plt.plot(val_ssims, label="val SSIM")
+    plt.xlabel("Epoch")
+    plt.ylabel("SSIM")
+    plt.title("VQ-VAE SSIM")
+    plt.legend()
+    ssim_path = os.path.join(out_dir, "ssim.png")
+    plt.savefig(ssim_path, bbox_inches="tight", dpi=150)
+    plt.close()
+
 def main():
     #build params
-    p = Parameters(profile="local")
+    p = Parameters(profile="rangpur")
 
     device = p.device
     if device.type != 'cuda':
@@ -96,7 +155,7 @@ def main():
     train_ssim, val_ssims = [], []
 
     best_v_loss = float("inf")
-
+    best_epoch = -1
     for epoch in range(p.epochs):
         #train
         avg_t_loss, avg_t_ssim = train_epoch(
@@ -113,18 +172,17 @@ def main():
         val_losses.append(avg_v_loss)
         val_ssims.append(avg_v_ssim)
 
-        print(
-            f"Epoch {epoch+1}/{p.epochs} | "
-            f"train_loss {avg_t_loss:.4f}  val_loss {avg_val_loss:.4f} | "
-            f"train_ssim {avg_t_ssim:.4f}  val_ssim {avg_val_ssim:.4f}"
-        )
+       
 
         #save best 
         if avg_v_loss < best_v_loss:
             best_v_loss = avg_v_loss
-            torch.save(model.state_dict(), "best_vqae.pt")
+            best_epoch = epoch + 1
+            torch.save(model.state_dict(), "best_vqvae.pt")
     #plot
-    
-       
+    plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir="logs")
+    save_metrics(train_loss, val_losses, train_ssim, val_ssims, best_epoch, best_v_loss, out_path="logs/training_metrics.txt")
+
+
 if __name__ == "__main__":
     main()
