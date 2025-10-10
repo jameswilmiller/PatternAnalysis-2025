@@ -95,7 +95,7 @@ def save_metrics(train_loss,
             val_ssims,
             fillvalue=float("nan")
         ):
-            f.write(f"{epoch}\t{tl}\t{vl}\t{ts}\t{vs}\n")
+            f.write(f"{epoch}\t{tl}\t{tv}\t{ts}\t{vs}\n")
     
 
 
@@ -127,7 +127,7 @@ def plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir):
 
 def main():
     #build params
-    p = Parameters(profile="rangpur")
+    p = Parameters(profile="local")
 
     device = p.device
     if device.type != 'cuda':
@@ -181,7 +181,7 @@ def main():
             torch.save(model.state_dict(), "best_vqvae.pt")
     #plot
     plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir="logs")
-    save_metrics(train_loss, val_losses, train_ssim, val_ssims, best_epoch, best_v_loss, out_path="logs/training_metrics.txt")
+    save_metrics(train_loss, val_losses, train_ssim, val_ssims, best_epoch, best_v_loss, epochs=p.epochs, out_path="logs/training_metrics.txt")
 
 
 if __name__ == "__main__":
