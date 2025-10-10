@@ -11,10 +11,6 @@ from modules import *
 #use these paths when using rangpur
 
 
-BASE_DIR = "/home/groups/comp3710/HipMRI_Study_open/keras_slices_data"
-TRAIN_DIR = os.path.join(BASE_DIR, "keras_slices_train")
-VAL_DIR = os.path.join(BASE_DIR, "keras_slices_validate")
-TEST_DIR = os.path.join(BASE_DIR, "keras_slices_test")
 
 
 
