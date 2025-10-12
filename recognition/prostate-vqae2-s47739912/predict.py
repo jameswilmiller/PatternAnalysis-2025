@@ -21,7 +21,7 @@ def eval_test(model, test_loader, device, ssim_metric):
     for batch in tqdm(test_loader, leave=False):
         batch = batch.to(device)
         recon, codebook_loss, commitment_loss, indices = model(batch)
-        loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss)
+        loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss, ssim_weight=0.15)
         total_loss += loss.item()
         total_ssim += ssim_metric(recon, batch).item()
     

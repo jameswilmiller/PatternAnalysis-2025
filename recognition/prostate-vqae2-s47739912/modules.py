@@ -9,9 +9,11 @@ class Parameters():
         #data roots
         rangpur_base_dir = Path("/home/groups/comp3710/HipMRI_Study_open/keras_slices_data")       
         local_base_dir = Path("C:/Users/itbmi/OneDrive/Documents/UQ-Work/pattern recognition/report/PatternAnalysis-2025/data/keras_slices_data")
-        
+        colab_base_dir = Path("/content/drive/MyDrive/projects/PatternAnalysis-2025/data/keras_slices_data")
         if profile == "rangpur":
             self.base_dir = rangpur_base_dir
+        elif profile == "colab":
+            self.base_dir = colab_base_dir
         else:
             self.base_dir = local_base_dir
 
@@ -38,9 +40,6 @@ class Parameters():
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
        
       
-
-
-        
 
 
 class VectorQuantiser(nn.Module):
