@@ -32,7 +32,7 @@ def evaluate(model, val_loader, device, ssim_metric):
     for batch in tqdm(val_loader, leave=False):
         batch = batch.to(device)
         recon, codebook_loss, commitment_loss, indices= model(batch)
-        loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss)
+        loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss, ssim_weight = 0.15)
         val_loss += loss.item()
         val_ssim += ssim_metric(recon, batch).item()
 
