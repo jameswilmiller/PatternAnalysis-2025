@@ -7,14 +7,16 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from torchvision.utils import save_image, make_grid
 from itertools import zip_longest
+from pytorch_msssim import ssim
 
 
 
 
-
-def loss_function(recon, target, codebook_loss, commitment_loss):
+def loss_function(recon, target, codebook_loss, commitment_loss, ssim_weight):
     recon_loss = F.mse_loss(recon, target)
-    return  recon_loss + codebook_loss + commitment_loss, recon_loss
+    ssim_loss = 1 - ssim(recon, target, data_range=1.0)
+    loss = recon_loss + ssim_weight * ssim_loss
+    return  loss + codebook_loss + commitment_loss, recon_loss
 
 #train
 @torch.no_grad()
