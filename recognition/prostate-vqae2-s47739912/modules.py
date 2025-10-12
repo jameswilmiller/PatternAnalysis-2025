@@ -151,3 +151,21 @@ class VQVAE(nn.Module):
         recon = self.decode(quantised)
         return recon, codebook_loss, commitment_loss, indices
     
+class CNNConv2d(nn.Conv2d):
+    def __init__(self, mask, initial_channels, out_channels, k, **kwargs):
+        super().__init__(initial_channels, out_channels, k, **kwargs)
+        #build mask
+        self.mask_type = mask
+        c = k // 2 #centers the index
+
+        #block all rows below the center
+        mask[:, :, c+1, :] = 0
+
+        #block columns right of center
+        mask[:, :, c, c:] = 0
+
+        self.register_buffer("mask", mask)
+    def forward(self, x):
+        w = self.weight * self.mask
+        return F.conv2d(x, w, self.bias, self.stride, self.padding, self.dilation, self.groups)
+
