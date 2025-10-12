@@ -31,7 +31,7 @@ class Parameters():
         #training
         self.batch_size = 32
         self.learning_rate = 1e-4
-        self.epochs = 10
+        self.epochs = 100
         self.recon_weight = 1.0
 
         #misc
