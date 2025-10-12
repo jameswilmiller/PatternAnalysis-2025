@@ -43,7 +43,7 @@ def show_visualisation(model, p, out_dir,split, n):
 
         index = indices[i].view(1,1,h,w).float()
         index_up = F.interpolate(index, size=target,
-                                  mode="nearest").squeeze().cpu.numpy()
+                                  mode="nearest").squeeze().cpu().numpy()
         plt.imsave(str(out / "indices" / f"indices{i}.png"), index_up, cmap="viridis")
 
 
