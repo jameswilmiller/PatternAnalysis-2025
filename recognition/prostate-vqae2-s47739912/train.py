@@ -57,7 +57,7 @@ def train_epoch(model, train_loader, optimiser, device, ssim_metric):
         recon, codebook_loss, commitment_loss, indices = model(batch)
 
         #loss + step
-        loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss)
+        loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss, ssim_weight=0.15)
         loss.backward()
         optimiser.step()
 
@@ -129,7 +129,7 @@ def plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir):
 
 def main():
     #build params
-    p = Parameters(profile="local")
+    p = Parameters(profile="rangpur")
 
     device = p.device
     if device.type != 'cuda':
