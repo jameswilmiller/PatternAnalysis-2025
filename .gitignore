@@ -4,3 +4,4 @@ __pycache__/
 outputs/
 best_vqvae.pt
 logs/
+final_vqvae.pt

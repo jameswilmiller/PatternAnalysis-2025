@@ -9,6 +9,42 @@ from torchvision.utils import save_image, make_grid
 from itertools import zip_longest
 from pytorch_msssim import ssim
 
+@torch.no_grad()
+def show_visualisation(model, p, out_dir,split, n):
+    loaders = KerasSlicesDataLoader(p)
+    loader = loaders.get_validation() if split == "validation" else (
+        loaders.get_train() if split == "train" else loaders.get_test()
+    )
+    out = Path(out_dir)
+    (out / "latents").mkdir(parents=True, exist_ok=True)
+    (out / "indices").mkdir(parents=True, exist_ok=True)
+
+    batch = next(iter(loader)).to(p.device)
+    model.eval()
+    code = model.encode(batch)
+    quant, x, y, indices = model.reparameterise(code)
+    recon = model.decode(quant).clamp(0,1)
+
+    nrow = min(n, batch.size(0))
+    save_image(make_grid(batch[:n], nrow=nrow, padding=2, pad_value=0.5), out / "originals.png")
+    save_image(make_grid(recon[:n], nrow=nrow, padding=2, pad_value=0.5), out / "recons.png")
+
+    #upsscale latents and indices
+
+    h, w = code.shape[-2:]
+    target = (h * 8, w * 8)
+    
+    for i in range(min(n, code.size(0))):
+        #latent mean over channels
+        z = code[i].mean(0, keepdim=True).unsqueeze(0)
+        z_up = F.interpolate(z, size=target, mode="bilinear", 
+                             align_corners=False).squeeze().cpu().numpy()
+        plt.imsave(str(out / "latents" / f"latent{i}.png"), z_up, cmap = "viridis")
+
+        index = indices[i].view(1,1,h,w).float()
+        index_up = F.interpolate(index, size=target,
+                                  mode="nearest").squeeze().cpu.numpy()
+        plt.imsave(str(out / "indices" / f"indices{i}.png"), index_up, cmap="viridis")
 
 
 
@@ -18,9 +54,9 @@ def loss_function(recon, target, codebook_loss, commitment_loss, ssim_weight):
     loss = recon_loss + ssim_weight * ssim_loss
     return  loss + codebook_loss + commitment_loss, recon_loss
 
-#train
+
 @torch.no_grad()
-def evaluate(model, val_loader, device, ssim_metric):
+def evaluate(model, val_loader, device, ssim_metric, epoch, epochs):
     """
     Evaluate the model on the validation loader
     returns avg_val_loss and avg_val_ssim
@@ -29,7 +65,7 @@ def evaluate(model, val_loader, device, ssim_metric):
     val_loss = 0.0
     val_ssim = 0.0
 
-    for batch in tqdm(val_loader, leave=False):
+    for batch in tqdm(val_loader, desc=f"Epoch {epoch}/{epochs} training", leave=False):
         batch = batch.to(device)
         recon, codebook_loss, commitment_loss, indices= model(batch)
         loss, _ = loss_function(recon, batch, codebook_loss, commitment_loss, ssim_weight = 0.15)
@@ -41,7 +77,7 @@ def evaluate(model, val_loader, device, ssim_metric):
     return avg_v_loss, avg_v_ssim
 
 
-def train_epoch(model, train_loader, optimiser, device, ssim_metric):
+def train_epoch(model, train_loader, optimiser, device, ssim_metric, epoch, epochs):
     """
     trains the model for a single epoch
     """
@@ -49,7 +85,7 @@ def train_epoch(model, train_loader, optimiser, device, ssim_metric):
     t_loss = 0.0
     t_ssim = 0.0
 
-    for batch in tqdm(train_loader, leave=False):
+    for batch in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs} training", leave=False):
         optimiser.zero_grad()
         batch = batch.to(device)
 
@@ -68,6 +104,7 @@ def train_epoch(model, train_loader, optimiser, device, ssim_metric):
     avg_t_ssim = t_ssim / len(train_loader)
 
     return avg_t_loss, avg_t_ssim
+
 
 def save_metrics(train_loss, 
                  val_losses, 
@@ -129,7 +166,7 @@ def plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir):
 
 def main():
     #build params
-    p = Parameters(profile="rangpur")
+    p = Parameters(profile="")
 
     device = p.device
     if device.type != 'cuda':
@@ -161,12 +198,12 @@ def main():
     for epoch in range(p.epochs):
         #train
         avg_t_loss, avg_t_ssim = train_epoch(
-            model, train_loader, optimiser, device, ssim_metric
+            model, train_loader, optimiser, device, ssim_metric, epoch, p.epochs
         )
 
         #validate
         avg_v_loss, avg_v_ssim = evaluate(
-            model, val_loader, device, ssim_metric
+            model, val_loader, device, ssim_metric, epoch, p.epochs
         )
 
         train_loss.append(avg_t_loss)
@@ -181,10 +218,12 @@ def main():
             best_v_loss = avg_v_loss
             best_epoch = epoch + 1
             torch.save(model.state_dict(), "best_vqvae.pt")
+
+    torch.save(model.state_dict(), "final_vqvae.pt")
     #plot
     plot_curves(train_loss, val_losses, train_ssim, val_ssims, out_dir="logs")
     save_metrics(train_loss, val_losses, train_ssim, val_ssims, best_epoch, best_v_loss, epochs=p.epochs, out_path="logs/training_metrics.txt")
-
+    show_visualisation(model, p, out_dir="logs", split="validation", n=10)
 
 if __name__ == "__main__":
     main()

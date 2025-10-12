@@ -8,7 +8,7 @@ class Parameters():
         self.profile = profile #change to "rangpur if using rangpur"
         #data roots
         rangpur_base_dir = Path("/home/groups/comp3710/HipMRI_Study_open/keras_slices_data")       
-        local_base_dir = Path("C:/Users/itbmi/OneDrive/Documents/UQ-Work/pattern recognition/report/PatternAnalysis-2025/data/keras_slices_data")
+        local_base_dir = Path("C:/Users/DadsDDR5/OneDrive/Documents/james stuff/PatternAnalysis-2025/data/keras_slices_data")
         
         if profile == "rangpur":
             self.base_dir = rangpur_base_dir
@@ -31,7 +31,7 @@ class Parameters():
         #training
         self.batch_size = 32
         self.learning_rate = 1e-4
-        self.epochs = 100
+        self.epochs = 2
         self.recon_weight = 1.0
 
         #misc
