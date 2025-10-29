@@ -1,5 +1,5 @@
 # VQVAE on HipMRI data slices
-
+Author: James Miller (s47739912)
 
 ## Overview
 This project implements a Vector quantised variational autoencoder (VQ-VAE) to learn compact, discrete representations
@@ -44,6 +44,7 @@ resized to 256x256 to maintain consistency. Pixel values were then min-max norma
 validation and testing so no further splitting needed to be done before training.
 
 ## Training Performance
+
 
 
 
