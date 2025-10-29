@@ -222,3 +222,4 @@ class PixelCNN(nn.Module):
         x = self.res_blocks(x)
         x = self.head(x)
         return x
+    

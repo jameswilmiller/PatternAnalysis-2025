@@ -1,4 +1,7 @@
 import torch
+import os
+import torch.nn as nn
+import torch.nn.functional as F
 from modules import *
 from dataset import *
 import torch.optim as optim
@@ -9,6 +12,114 @@ from torchvision.utils import save_image, make_grid
 from itertools import zip_longest
 from pytorch_msssim import ssim
 
+@torch.no_grad()
+def decode_z(vqvae, z):
+    return vqvae.decode(z).clamp(0,1)
+
+@torch.no_grad()
+def get_quantized(vqvae, x):
+    vqvae.eval()
+    code = vqvae.encode(x)
+    z, _, _, _ = vqvae.reparameterise(code)
+    return z
+
+@torch.no_grad()
+def sample(pixelcnn, latent_shape, device):
+    B, D, H, W = latent_shape
+    z = torch.zeros(B, D, H, W, device=device)
+    pixelcnn.eval()
+    for y in range(H):
+        for x in range(W):
+            pred = pixelcnn(z)
+            mean_vec = pred[:,:,y,x]
+            z[:,:,y,x] = mean_vec
+    return z
+
+
+def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
+    """
+    train pixelcnn on VQVAE quantised latents saves training curves and best_pixelcnn
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    if p is None:
+        p = Parameters(profile="local")
+    device = p.device
+    
+    #data 
+    loaders = KerasSlicesDataLoader(p)
+    train_loader = loaders.get_train()
+    val_loader = loaders.get_validation()
+
+
+    vqvae = VQVAE(embedding_dim=p.embedding_dim, num_embeddings=p.num_embeddings, beta=p.beta).to(device)
+    state = torch.load("best_vqvae.pt", map_location=device)
+    vqvae.load_state_dict(state)
+    vqvae.eval()
+
+    pixelcnn = PixelCNN(init_channel=p.embedding_dim,
+                        channels=128,
+                        out_channel=p.embedding_dim,
+                        num_resid=5).to(device)
+    opt = optim.Adam(pixelcnn.parameters(), lr=1e-3)
+    mse = nn.MSELoss()
+
+    epochs = 100
+    best_val = float("inf")
+    train_losses, val_losses = [], []
+
+    for epoch in range(1, epochs + 1):
+        pixelcnn.train()
+        running = 0.0
+        n_batches = 0
+        pbar = tqdm(train_loader, desc=f"[PixelCNN] Epoch {epoch} / 100 (train)", leave=False)
+        for imgs in pbar:
+            imgs = imgs.to(device)
+            with torch.no_grad():
+                z = get_quantized(vqvae, imgs)
+            pred = pixelcnn(z)
+            loss = mse(pred, z)
+
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            opt.step()
+
+            running += loss.item()
+            n_batches += 1
+        train_loss = running / max(1, n_batches)
+        train_losses.append(train_loss)
+
+        #validate
+        pixelcnn.eval()
+        running = 0.0
+        n_batches = 0
+        with torch.no_grad():
+            pbar = tqdm(val_loader, desc=f"[PixelCNN] Epoch {epoch} / 100 (validation)", leave=False)
+            for imgs in pbar:
+                imgs = imgs.to(device)
+                z = get_quantized(vqvae, imgs)
+                pred = pixelcnn(z)
+                loss = mse(pred, z)
+                running += loss.item()
+                n_batches += 1
+        val_loss = running / max(1, n_batches)
+        val_losses.append(val_loss)
+
+        #save
+        if val_loss < best_val:
+            best_val = val_loss
+            torch.save(pixelcnn.state_dict(), os.path.join(save_dir, "best_pixelcnn.pt"))
+
+    torch.save(pixelcnn.state_dict(), os.path.join(save_dir, "final_pixelcnn.pt"))
+
+    plt.figure()
+    plt.plot(train_losses, label="train")
+    plt.plot(val_losses, label="validation")
+    plt.xlabel("epoch")
+    plt.ylabel("MSE")
+    plt.legend()
+    plt.title("PixelCNN on VQ VAE latents")
+    plt.savefig(os.path.join(save_dir, "pixelcnn_loss.png"))
+    plt.close()
 @torch.no_grad()
 def show_visualisation(model, p, out_dir,split, n):
     loaders = KerasSlicesDataLoader(p)
@@ -226,4 +337,6 @@ def main():
     show_visualisation(model, p, out_dir="logs", split="validation", n=10)
 
 if __name__ == "__main__":
-    main()
+    #main()
+    p = Parameters(profile = "local")
+    train_pixelcnn(p=p, epochs=100, save_dir="logs")
