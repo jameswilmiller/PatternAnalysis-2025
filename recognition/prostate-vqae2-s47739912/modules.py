@@ -9,9 +9,10 @@ class Parameters():
         #data roots
         rangpur_base_dir = Path("/home/groups/comp3710/HipMRI_Study_open/keras_slices_data")       
 
-        local_base_dir = Path("C:/Users/DadsDDR5/OneDrive/Documents/james stuff/PatternAnalysis-2025/data/keras_slices_data")
+        #this is the directory for other PC i have been training on
+        #local_base_dir = Path("C:/Users/DadsDDR5/OneDrive/Documents/james stuff/PatternAnalysis-2025/data/keras_slices_data")
 
-        #local_base_dir = Path("C:/Users/itbmi/OneDrive/Documents/UQ-Work/pattern recognition/report/PatternAnalysis-2025/data/keras_slices_data")
+        local_base_dir = Path("C:/Users/itbmi/OneDrive/Documents/UQ-Work/pattern recognition/report/PatternAnalysis-2025/data/keras_slices_data")
  
         if profile == "rangpur":
             self.base_dir = rangpur_base_dir
@@ -151,6 +152,7 @@ class VQVAE(nn.Module):
         recon = self.decode(quantised)
         return recon, codebook_loss, commitment_loss, indices
     
+
 class CNNConv2d(nn.Conv2d):
     def __init__(self, mask, initial_channels, out_channels, k, **kwargs):
         super().__init__(initial_channels, out_channels, k, **kwargs)
@@ -165,7 +167,35 @@ class CNNConv2d(nn.Conv2d):
         mask[:, :, c, c:] = 0
 
         self.register_buffer("mask", mask)
+
     def forward(self, x):
         w = self.weight * self.mask
         return F.conv2d(x, w, self.bias, self.stride, self.padding, self.dilation, self.groups)
-
+    
+class PixelCNNresBlock(nn.Module):
+    """
+    light residual block
+    """
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(channels, channels // 2, kernel_size=1)
+            nn.ReLU(inplace=True),
+        )
+        self.conv2 = nn.Sequential(
+            CNNConv2d("B", channels // 2, channels // 2, kernel_size =3, padding=1),
+            nn.ReLU(inplace=True),
+        )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(channels // 2, channels, kernel_size=1),
+            nn.ReLU(inplace=True),
+        )
+    
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.conv2(out)
+        out = self.conv3(out)
+        return x + out
+    
+class PixelCNN(nn.Module):
+    pass
