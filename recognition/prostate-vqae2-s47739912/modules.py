@@ -154,18 +154,17 @@ class VQVAE(nn.Module):
     
 
 class CNNConv2d(nn.Conv2d):
-    def __init__(self, mask, initial_channels, out_channels, k, **kwargs):
-        super().__init__(initial_channels, out_channels, k, **kwargs)
+    def __init__(self, mask_type, initial_channels, out_channels, kernel_size, **kwargs):
+        super().__init__(initial_channels, out_channels, kernel_size, **kwargs)
         #build mask
-        self.mask_type = mask
-        c = k // 2 #centers the index
 
+       
+        c = kernel_size // 2 #centers the index
+        mask = torch.ones_like(self.weight)
         #block all rows below the center
         mask[:, :, c+1, :] = 0
 
-        #block columns right of center
-        mask[:, :, c, c:] = 0
-
+        mask[:, :, c, c + (0 if mask_type == "B" else 1):] = 0
         self.register_buffer("mask", mask)
 
     def forward(self, x):
@@ -179,7 +178,7 @@ class PixelCNNresBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(channels, channels // 2, kernel_size=1)
+            nn.Conv2d(channels, channels // 2, kernel_size=1),
             nn.ReLU(inplace=True),
         )
         self.conv2 = nn.Sequential(
@@ -198,4 +197,28 @@ class PixelCNNresBlock(nn.Module):
         return x + out
     
 class PixelCNN(nn.Module):
-    pass
+    def __init__(self, init_channel = 128, channels = 128, out_channel=128, num_resid=5):
+        super().__init__()
+        #intial layer (masked A)
+        self.s = nn.Sequential(
+            CNNConv2d("A", init_channel, channels, kernel_size=7, padding=3),
+            nn.ReLU(inplace=True),
+        )
+
+        self.res_blocks = nn.Sequential(
+            *[PixelCNNresBlock(channels) for _ in range(num_resid)]
+        )
+
+        self.head = nn.Sequential(
+           CNNConv2d("B", channels, channels, kernel_size=3, padding=1),
+           nn.ReLU(inplace=True),
+           CNNConv2d("B", channels, channels, kernel_size=3, padding=1),
+           nn.ReLU(inplace=True),
+           nn.Conv2d(channels, out_channel, kernel_size=1)
+        )
+    
+    def forward(self, x):
+        x = self.s(x)
+        x = self.res_blocks(x)
+        x = self.head(x)
+        return x
