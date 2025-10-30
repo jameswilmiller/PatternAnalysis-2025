@@ -35,7 +35,7 @@ which are decoded using the VQ-VAE into a new realistic looking image
 ### Architecture
 The pixelCNN learns spacial dependencies between VQ-VAE embeddings. It begins with a masked convolution(type A) to enforce
 autoregressive ordering, followed by 5 residual blocks combining 1x1 and 3x3 convolutions. The final layers project the output to match
-the VQ-VAE 64 dimensional latent channels. The model is trained using MSE loss, the model predicts and samples latent grids that the VQ-VAE
+the VQ-VAE 64 dimensional latent channels. The model is trained using Cross entropy loss, the model predicts and samples latent grids that the VQ-VAE
 can decode into new imagess.
 
 ## Data and Preprocessing
