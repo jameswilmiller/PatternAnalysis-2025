@@ -43,6 +43,22 @@ The dataset consists of 2D prostate MRI slices stored as NIfTI (.nii.gz) files. 
 resized to 256x256 to maintain consistency. Pixel values were then min-max normalised to 0-1. The data was given pre split for training,
 validation and testing so no further splitting needed to be done before training.
 
+## Parameters
+All runtime settings live in parameters (see modules.py)
+| Name | Type | Default | Description |
+|---|---|---:|---|
+| profile | str | local | select data root as local or rangpur. |
+| img_size | (H, W) | (256, 256) | input/output image size |
+| normalise | bool | True | min max normalises imgs |
+| embedding_dim | int | 64 | VQ-VAE latent channel dimension |
+| num_embeddings | int | 512 | codebook size |
+| beta | float | 0.25 | VQ commitment loss |
+| batch_size | int | 32 | training batch size |
+| learning_rate | float | 1e-4 | Adam optimiser learning rate |
+| epochs | int | 100 | VQ-VAE training epochs |
+| recon_weight | float | 1 | weight on reconstruction in loss |
+| device | torch.device | auto | Cuda if available else cpu |
+
 ## Training Performance
 ### VQ-VAE loss curves
 
@@ -55,10 +71,36 @@ validation and testing so no further splitting needed to be done before training
 
 ## Test performance
 ### VQ-VAE original image vs reconstruction (random batch)
+The model performed reasonably well on the test set achieving an avg_test_ssim of 0.8427
 
+A plot of 8 original images alongside their reconstructions can be seen below
+![VQVAE original vs recon](./images/original_recon_grid.png)
 
+All the images in this batch suit the criteria of being reasonably clear with the primary difference
+between original and reconstruction images being slight fuzziness / lack of clarity. This will reduce the performance
+of the PixelCNN generated images, however the average SSIM was deemed high enough to train a pixelCNN to produce priors
+for the model.
 
+## latent representation of image 
+Below latent represenations of the images are plotted (pre and post quantisation step)
 
+![VQVAE_latent_representation](./images/latent_channel.png)
+
+![VQVAE_quant_representaiton](./images/quantised_channel.png)
+
+## decoded PixelCNN generated priors
+
+The images decoded from the generated priors can be seen below:
+
+![PixelCNN_samples](./images/pixel_cnn_samples.png)
+
+Many of the images follow the shape and structure of the MRI scans (notably the top left image looks close to real), however they lack clear detail and some have noticable warping / unrealistic proportions.
+This indicates the model is succesfully generating priors which the VQ-VAE is decoding, however more tuning needs to be done to both models in order to create
+images that are harder to distinguish from real ones. I.E the VQ-VAE could be improved to have higher SSIM on test set, and the pixelCNN could be improved to generate
+more realistic priors.
+## Dependencies
+
+## Future improvements
 
 
 
