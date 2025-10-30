@@ -14,7 +14,7 @@ replacing each latent vector with the nearest entry from a learned codebook of e
 meaningful features. The decoder then deconstructs the image from the codes producing realistic outputs that preserve important structural
 details.
 
-(image will go here)
+![VQVAE diagram](./images/VQ-VAE_diagram.png)
 Van Den Oord, Aaron, and Oriol Vinyals. "Neural discrete representation learning." Advances in neural information processing systems 30 (2017).
 
 ### Architecture
@@ -31,7 +31,6 @@ when used with a VQ-VAE, the pixelCNN is trained on the latent space rather than
 codes the VQ-VAE has produced. The pixelCNN is then used as a prior model where during image generation the pixelCNN samples a new grid of latent codes
 which are decoded using the VQ-VAE into a new realistic looking image
 
-(image will go here)
 
 ### Architecture
 The pixelCNN learns spacial dependencies between VQ-VAE embeddings. It begins with a masked convolution(type A) to enforce
@@ -45,6 +44,17 @@ resized to 256x256 to maintain consistency. Pixel values were then min-max norma
 validation and testing so no further splitting needed to be done before training.
 
 ## Training Performance
+### VQ-VAE loss curves
+
+![VQ-VAE train loss](./images/loss.png)
+![VQ-VAE ssim_loss](./images/ssim.png)
+
+### PixelCNN loss curve
+![PixelCNN train_loss](./images/pixelcnn_loss.png)
+
+
+## Test performance
+### VQ-VAE original image vs reconstruction (random batch)
 
 
 
