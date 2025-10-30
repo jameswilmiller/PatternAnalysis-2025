@@ -8,17 +8,27 @@ from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 from modules import *
-#use these paths when using rangpur
-
-
-
 
 
 
 def list_nifti(folder: Path):
+    """
+    Recursively list all the .nii.gz files under the given folder, 
+    returns the sorted path as strings to build train/val/test file lists
+    """
     return sorted(str(p) for p in folder.rglob("*") if p.name.lower().endswith(".nii.gz"))
 
+
 class KerasSlicesDataset(Dataset):
+    """
+    dataset that loads 2D slices from NIfTI files
+
+    loads the image as float32 using nibabel
+    if 3d volume is found it takes the first slice i.e arr[:,:,0]
+    resizes to a target size with bilinear interpolation i.e 256 by 256
+    normalises each image to [0, 1] using min max
+    returns single channel tensor [1, H, W]
+    """
     def __init__(self, image_paths, size=(256, 256), norm=True):
         self.image_paths = image_paths
         self.size = size
@@ -34,7 +44,6 @@ class KerasSlicesDataset(Dataset):
         arr = arr.astype(np.float32)
         return arr
     
-
     def __getitem__(self, idx):
         arr = self.load_2d(self.image_paths[idx])
 
@@ -61,12 +70,10 @@ class KerasSlicesDataset(Dataset):
                 x = torch.zeros_like(x)
         return x
 
-
-
-
-
 class KerasSlicesDataLoader():
-
+    """
+    builds train/val/test datasets and dataloaders based on paths in parameters
+    """
     def __init__(self, p: Parameters = None):
         self.p = p if p is not None else Parameters()
 

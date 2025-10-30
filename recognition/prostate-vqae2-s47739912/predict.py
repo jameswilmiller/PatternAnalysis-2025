@@ -11,7 +11,41 @@ device = p.device
 
 
 
+@torch.no_grad()
+def sample_images(p):
+    device = p.device
+    os.makedirs("samples", exist_ok=True)
 
+    #load the vqvae
+    vqvae = VQVAE(
+        embedding_dim=p.embedding_dim,
+        num_embeddings=p.num_embeddings,
+        beta=p.beta
+        ).to(device)
+    vq_state = torch.load("best_vqvae.pt", map_location=device)
+    vqvae.load_state_dict(vq_state)
+    vqvae.eval()
+
+    #infer latent height width
+    dummy = torch.zeros(1, 1, *p.img_size, device=device)
+    code = vqvae.encode(dummy)
+    D, H, W = code.shape[1:]
+
+    pixelcnn = PixelCNN(init_channel=p.embedding_dim,
+                        channels=128,
+                        out_channel=p.num_embeddings,
+                        num_resid=5).to(device)
+    pix_state = torch.load("logs/best_pixelcnn.pt", map_location=device)
+    pixelcnn.load_state_dict(pix_state)
+    pixelcnn.eval()
+
+    #sample indices and decode using vqvae
+    idx, z = sample(vqvae, pixelcnn, B=16, D=D, H=H, W=W,
+                    t=1.0, device=device)
+    imgs = decode_z(vqvae, z)
+    grid = make_grid(imgs, nrow=4, padding=2, pad_value=0.5)
+    save_image(grid, os.path.join("samples", "pixel_cnn_samples.png"))
+    
 @torch.no_grad()
 def eval_test(model, test_loader, device, ssim_metric):
     model.eval()
@@ -57,7 +91,7 @@ def main():
 
     print(f"avg test loss: {avg_loss}")
     print(f"avg test ssim: {avg_ssim}")
-
+    sample_images(p)
 
 if __name__ == "__main__":
     main()

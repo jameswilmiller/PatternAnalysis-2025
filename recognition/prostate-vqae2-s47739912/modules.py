@@ -162,9 +162,11 @@ class CNNConv2d(nn.Conv2d):
         c = kernel_size // 2 #centers the index
         mask = torch.ones_like(self.weight)
         #block all rows below the center
-        mask[:, :, c+1, :] = 0
+        mask[:, :, c+1:, :] = 0
 
-        mask[:, :, c, c + (0 if mask_type == "B" else 1):] = 0
+        mask[:, :, c, c+1:] = 0
+        if mask_type == 'A':
+            mask[:, :, c, c] = 0
         self.register_buffer("mask", mask)
 
     def forward(self, x):

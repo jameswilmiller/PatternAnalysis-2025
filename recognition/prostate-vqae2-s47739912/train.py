@@ -23,18 +23,25 @@ def get_quantized(vqvae, x):
     z, _, _, _ = vqvae.reparameterise(code)
     return z
 
+
 @torch.no_grad()
-def sample(pixelcnn, latent_shape, device):
-    B, D, H, W = latent_shape
-    z = torch.zeros(B, D, H, W, device=device)
+def sample(vqvae, pixelcnn, B, D, H, W, t, device="cuda"):
     pixelcnn.eval()
+    vqvae.eval()
+
+    z_in = torch.zeros(B, D, H, W, device=device)
+    idx = torch.zeros(B, H, W, dtype=torch.long, device=device)
+    emb_tab = vqvae.vq.embedding
+
     for y in range(H):
         for x in range(W):
-            pred = pixelcnn(z)
-            mean_vec = pred[:,:,y,x]
-            z[:,:,y,x] = mean_vec
-    return z
-
+            l = pixelcnn(z_in)
+            l = l / max(t, 1e-6)
+            probs = l.softmax(dim=1)
+            ix = torch.multinomial(probs, num_samples=1).squeeze(1)
+            idx[:, y, x] = ix
+            z_in[:,:,y,x] = emb_tab(ix)
+    return idx, z_in
 
 def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
     """
@@ -58,15 +65,15 @@ def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
 
     pixelcnn = PixelCNN(init_channel=p.embedding_dim,
                         channels=128,
-                        out_channel=p.embedding_dim,
+                        out_channel=p.num_embeddings,
                         num_resid=5).to(device)
     opt = optim.Adam(pixelcnn.parameters(), lr=1e-3)
-    mse = nn.MSELoss()
+    ce_loss = nn.CrossEntropyLoss()
 
-    epochs = 100
+    epochs = epochs or 100
     best_val = float("inf")
     train_losses, val_losses = [], []
-
+    
     for epoch in range(1, epochs + 1):
         pixelcnn.train()
         running = 0.0
@@ -75,9 +82,15 @@ def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
         for imgs in pbar:
             imgs = imgs.to(device)
             with torch.no_grad():
-                z = get_quantized(vqvae, imgs)
-            pred = pixelcnn(z)
-            loss = mse(pred, z)
+                code = vqvae.encode(imgs)
+                _, _, _, indices = vqvae.reparameterise(code)
+                z_in = vqvae.vq.embedding(indices)
+                z_in = z_in.permute(0, 3, 1, 2).contiguous()
+                
+            l = pixelcnn(z_in)
+            loss = ce_loss(l, indices.long())
+
+            
 
             opt.zero_grad(set_to_none=True)
             loss.backward()
@@ -96,9 +109,11 @@ def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
             pbar = tqdm(val_loader, desc=f"[PixelCNN] Epoch {epoch} / 100 (validation)", leave=False)
             for imgs in pbar:
                 imgs = imgs.to(device)
-                z = get_quantized(vqvae, imgs)
-                pred = pixelcnn(z)
-                loss = mse(pred, z)
+                code = vqvae.encode(imgs)
+                _, _, _, indices = vqvae.reparameterise(code)
+                z_in = vqvae.vq.embedding(indices).permute(0,3,1,2).contiguous()
+                l = pixelcnn(z_in)
+                loss = ce_loss(l, indices.long())
                 running += loss.item()
                 n_batches += 1
         val_loss = running / max(1, n_batches)
@@ -115,7 +130,7 @@ def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
     plt.plot(train_losses, label="train")
     plt.plot(val_losses, label="validation")
     plt.xlabel("epoch")
-    plt.ylabel("MSE")
+    plt.ylabel("Cross entropy")
     plt.legend()
     plt.title("PixelCNN on VQ VAE latents")
     plt.savefig(os.path.join(save_dir, "pixelcnn_loss.png"))
