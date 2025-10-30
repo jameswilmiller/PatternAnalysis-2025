@@ -116,9 +116,6 @@ class VQVAE(nn.Module):
         #decoder
         self.decoder = nn.Sequential(
             
-
-
-
             nn.ConvTranspose2d(embedding_dim, 128, 3, stride=2, padding=1, output_padding=1), #16 > 32
             nn.BatchNorm2d(128),
             nn.ReLU(),
@@ -158,7 +155,6 @@ class CNNConv2d(nn.Conv2d):
         super().__init__(initial_channels, out_channels, kernel_size, **kwargs)
         #build mask
 
-       
         c = kernel_size // 2 #centers the index
         mask = torch.ones_like(self.weight)
         #block all rows below the center
@@ -174,9 +170,7 @@ class CNNConv2d(nn.Conv2d):
         return F.conv2d(x, w, self.bias, self.stride, self.padding, self.dilation, self.groups)
     
 class PixelCNNresBlock(nn.Module):
-    """
-    light residual block
-    """
+    
     def __init__(self, channels):
         super().__init__()
         self.conv1 = nn.Sequential(
