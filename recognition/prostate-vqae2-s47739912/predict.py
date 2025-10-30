@@ -62,6 +62,61 @@ def eval_test(model, test_loader, device, ssim_metric):
     n = len(test_loader)
     return total_loss / n, total_ssim / n
 
+@torch.no_grad()
+def plot_original_recon(model, loader, device, out_dir="vis", max_images=8):
+    """
+    make 2 row grid originals on top and reconstructions on the bottom
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    model.eval()
+
+    batch = next(iter(loader)).to(device)
+    recon, _, _, _ = model(batch)
+
+    #pick up to the images num selected
+    n = min(max_images, batch.size(0))
+    originals = batch[:n].clamp(0, 1)
+    recons = recon[:n].clamp(0, 1)
+
+    #stack into 2 row grid
+    grid = make_grid(torch.cat([originals, recons], dim=0), nrow=n, padding=2, pad_value=0.5)
+    save_path = os.path.join(out_dir, "original_recon_grid.png")
+    save_image(grid, save_path)
+
+def plot_latent_quant(model, loader, device, out_dir="vis", channel=0):
+    os.makedirs(out_dir, exist_ok=True)
+    model.eval()
+
+    #get a single image
+    batch = next(iter(loader)).to(device)
+    x = batch[0:1]
+
+    #get the latent pre VQ
+    code = model.encode(x)
+
+    quantised, _, _, indices = model.reparameterise(code)
+
+    #latent channel heatmap
+    latent_channel = code[0, channel].detach().cpu().float()
+
+    plt.figure(figsize=(6,5))
+    plt.imshow(latent_channel.numpy(), cmap="viridis", aspect="auto")
+    plt.colorbar()
+    plt.title("latent pre vector quantised channel")
+    latent_path = os.path.join(out_dir, "latent_channel.png")
+    plt.savefig(latent_path)
+    plt.close()
+
+    #quantised channel heatmap
+    quantised_channel = quantised[0, channel].detach().cpu().float()
+
+    plt.figure(figsize=(6,5))
+    plt.imshow(quantised_channel.numpy(), cmap="viridis", aspect="auto")
+    plt.colorbar()
+    plt.title("post vector quantised latent channel")
+    latent_path = os.path.join(out_dir, "quantised_channel.png")
+    plt.savefig(latent_path)
+    plt.close()
 
 def main():
     mod_path = "best_vqvae.pt"
@@ -88,10 +143,13 @@ def main():
 
     #eval
     avg_loss, avg_ssim = eval_test(model, test_loader, device, ssim_metric)
-
+    plot_original_recon(model, test_loader, device, out_dir="vis", max_images=8)
+    plot_latent_quant(model, test_loader, device, out_dir="vis", channel=0)
     print(f"avg test loss: {avg_loss}")
     print(f"avg test ssim: {avg_ssim}")
     sample_images(p)
+
+
 
 if __name__ == "__main__":
     main()
