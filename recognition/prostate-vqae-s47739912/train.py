@@ -351,6 +351,6 @@ def main():
     show_visualisation(model, p, out_dir="logs", split="validation", n=10)
 
 if __name__ == "__main__":
-    #main()
+    main()
     p = Parameters(profile = "local")
     train_pixelcnn(p=p, epochs=100, save_dir="logs")
