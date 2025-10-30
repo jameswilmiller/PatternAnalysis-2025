@@ -35,11 +35,10 @@ def sample(vqvae, pixelcnn, B, D, H, W, t, device="cuda"):
 
     for y in range(H):
         for x in range(W):
-            l = pixelcnn(z_in)
-            l = l / max(t, 1e-6)
+            l = pixelcnn(z_in)[:, :, y, x] / max(t, 1e-6)
             probs = l.softmax(dim=1)
             ix = torch.multinomial(probs, num_samples=1).squeeze(1)
-            idx[:, y, x] = ix
+            idx[:,y,x] = ix
             z_in[:,:,y,x] = emb_tab(ix)
     return idx, z_in
 
@@ -64,9 +63,9 @@ def train_pixelcnn(p=None, epochs=None, save_dir="logs"):
     vqvae.eval()
 
     pixelcnn = PixelCNN(init_channel=p.embedding_dim,
-                        channels=128,
+                        channels=256,
                         out_channel=p.num_embeddings,
-                        num_resid=5).to(device)
+                        num_resid=10).to(device)
     opt = optim.Adam(pixelcnn.parameters(), lr=1e-3)
     ce_loss = nn.CrossEntropyLoss()
 

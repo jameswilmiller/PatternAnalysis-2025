@@ -32,20 +32,20 @@ def sample_images(p):
     D, H, W = code.shape[1:]
 
     pixelcnn = PixelCNN(init_channel=p.embedding_dim,
-                        channels=128,
+                        channels=256,
                         out_channel=p.num_embeddings,
-                        num_resid=5).to(device)
+                        num_resid=10).to(device)
     pix_state = torch.load("logs/best_pixelcnn.pt", map_location=device)
     pixelcnn.load_state_dict(pix_state)
     pixelcnn.eval()
 
     #sample indices and decode using vqvae
     idx, z = sample(vqvae, pixelcnn, B=16, D=D, H=H, W=W,
-                    t=1.0, device=device)
+                    t=0.8, device=device)
     imgs = decode_z(vqvae, z)
     grid = make_grid(imgs, nrow=4, padding=2, pad_value=0.5)
     save_image(grid, os.path.join("samples", "pixel_cnn_samples.png"))
-    
+
 @torch.no_grad()
 def eval_test(model, test_loader, device, ssim_metric):
     model.eval()
@@ -95,3 +95,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
