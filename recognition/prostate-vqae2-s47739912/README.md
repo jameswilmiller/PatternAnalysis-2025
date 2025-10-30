@@ -15,6 +15,7 @@ meaningful features. The decoder then deconstructs the image from the codes prod
 details.
 
 (image will go here)
+Van Den Oord, Aaron, and Oriol Vinyals. "Neural discrete representation learning." Advances in neural information processing systems 30 (2017).
 
 ### Architecture
 The VQ-VAE uses three convolutional blocks with batch normalisation, ReLU activations and pooling to reduce the image size from 256x256
@@ -44,6 +45,7 @@ resized to 256x256 to maintain consistency. Pixel values were then min-max norma
 validation and testing so no further splitting needed to be done before training.
 
 ## Training Performance
+
 
 
 
