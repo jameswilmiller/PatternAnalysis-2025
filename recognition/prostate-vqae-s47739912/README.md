@@ -43,6 +43,7 @@ The dataset consists of 2D prostate MRI slices stored as NIfTI (.nii.gz) files. 
 resized to 256x256 to maintain consistency. Pixel values were then min-max normalised to 0-1. The data was given pre split for training,
 validation and testing so no further splitting needed to be done before training.
 
+
 ## Parameters
 All runtime settings live in parameters (see modules.py)
 | Name | Type | Default | Description |
@@ -59,13 +60,38 @@ All runtime settings live in parameters (see modules.py)
 | recon_weight | float | 1 | weight on reconstruction in loss |
 | device | torch.device | auto | Cuda if available else cpu |
 
+## how to setup
+before running any files modify file path for local in modules or initialise params to use rangpur
+then install dependencies listed at bottom of readme
+
+1. python train.py
+
+   outputs will be saved in specified output_dir
+   
+3. python predict.py
+
+   outputs will be saved in specified output_dir and test SSIM will be printed to terminal
+
 ## Training Performance
 ### VQ-VAE loss curves
 
+The loss curves for VQ-VAE show steep decline during first few epochs before gradual convergence indicating
+the model quickly learned to reconstruct MRI slices and stabilised. The validation and training loss are closely 
+aligned indicating minimal overfitting and a well generalised model.
 ![VQ-VAE train loss](./images/loss.png)
+
+The SSIM plot mirrors this trend with training and validation SSIM increasing rapidly over the first few epochs,
+then gradually increasing up to around 0.82-0.84. This indicates that the reconstructions are retaining a strong
+structural similarity to the input images. The small gap between validation and training also indicates the model is
+well generalised.
 ![VQ-VAE ssim_loss](./images/ssim.png)
 
 ### PixelCNN loss curve
+
+The pixelCNN cross entropy loss decreases consistently for the training set but levels off and slightly rises
+for validation after 10-20 epochs. This pattern indicates overfitting. Early stopping around the validation loss
+minimum yields better generalisation. Despite this the trend confirms that the PixelCNN succesfully learned the latent space
+distribution defined by the VQ-VAE.
 ![PixelCNN train_loss](./images/pixelcnn_loss.png)
 
 
@@ -74,6 +100,7 @@ All runtime settings live in parameters (see modules.py)
 The model performed reasonably well on the test set achieving an avg_test_ssim of 0.8427
 
 A plot of 8 original images alongside their reconstructions can be seen below
+
 ![VQVAE original vs recon](./images/original_recon_grid.png)
 
 All the images in this batch suit the criteria of being reasonably clear with the primary difference
@@ -98,11 +125,29 @@ Many of the images follow the shape and structure of the MRI scans (notably the 
 This indicates the model is succesfully generating priors which the VQ-VAE is decoding, however more tuning needs to be done to both models in order to create
 images that are harder to distinguish from real ones. I.E the VQ-VAE could be improved to have higher SSIM on test set, and the pixelCNN could be improved to generate
 more realistic priors.
+
 ## Dependencies
+| Package | Version |
+|---|---:|
+| torch | 2.7.1+cu118 |
+| torchvision | 0.22.1+cu118 |
+| torchmetrics | 1.8.2 |
+| pytorch-msssim | 1.0.0 |
+| numpy | 2.3.3 |
+| matplotlib | 3.10.7 |
+| tqdm | 4.67.1 |
+| pillow | 11.3.0 |
+| nibabel | 5.3.2 |
 
 ## Future improvements
 
+* upgrade generative stack i.e use VQ-VAE2 (heirarchal quantisation and try a transformer/pixelSnail prior over codes for sharper samples
+  
+* strengthen training and eval i.e adopt EMA codebooks and report codebook perplexity alongside SSIM to monitor representation quality
 
+* latent space regularisation i.e encourage uniform code usage (entropy bonus)
+  
+* promote spatial smoothness in pre quantistation latents i.e laplacian penalty
 
 
 
